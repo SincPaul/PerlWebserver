@@ -375,8 +375,14 @@ sub try_with_gmail {
     my $from = $smtp::clients{$sender_fd}{"from"};
     my $to = $smtp::clients{$sender_fd}{"to"};
     my $subject = $smtp::clients{$sender_fd}{"subject"};
-    my $content = "Info: Failed delivering from $from to you normally because wihtout Domain I cant forward it via aioperl.de server.\n Thats why it was sent via temporary Gmail. \n\nEMAIL STARTS HERE:\nFrom: $from\nTo: $to\nSubject: $subject\n\n" . $smtp::clients{$sender_fd}{"content"};
-    # my $content = $smtp::clients{$sender_fd}{"content"};
+    my $info = "Info: Failed delivering from $from to you normally because wihtout Domain I cant forward it via aioperl.de server.<br> 
+    Thats why it was sent via temporary Gmail. <br><br>
+    EMAIL STARTS HERE:<br>
+    From: $from<br>
+    To: $to<br>
+    Subject: $subject<br><br>                                                                       ";
+    $smtp::clients{$sender_fd}{"content"} =~ s/(<body[^>]*>)/$1\n$info\n/;
+    my $content = $smtp::clients{$sender_fd}{"content"};
 
     $smtp->mail($from);
     $smtp->to($to);
@@ -384,6 +390,7 @@ sub try_with_gmail {
     $smtp->datasend("To: $to\n");
     $smtp->datasend("From: $from\n");
     $smtp->datasend("Subject: $subject\n");
+    $smtp->datasend("Content-Type: text/html; charset=UTF-8\n");
     $smtp->datasend("\n");
     $smtp->datasend("$content\n");
     $smtp->dataend();

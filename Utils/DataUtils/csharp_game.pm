@@ -249,11 +249,12 @@ sub download_launcher {
 
     my $base_dir = getcwd();
     # my $launcher_file_name = "GameLauncher-0.1.exe";
-    my $launcher_file_name = "GameLauncherSetup v0.3.exe";
+    my $launcher_file_name = "GameLauncherSetup v0.003.exe";
     my $game_file = "$base_dir/Data/CSharpGameLauncher/Launcher/$launcher_file_name";
     print("BONJOUR\n");
     if (!-e $game_file) {
-        die;
+        http_utils::serve_error($client_socket, HTTP_RESPONSE::ERROR_404("File not found"));
+        return;
     }
     my $file_size = -s $game_file;
     open my $fh, '<', $game_file or die "Cannot open file: $!";
