@@ -198,9 +198,9 @@ sub create_meta_data {
             $meta_data{$key} = $upload_meta_data{$key};
             if ($key eq "force_new_version") {
                 if ($meta_data{$key} eq "true") {
-                    $meta_data{$key} = JSON::true;
+                    $meta_data{$key} = \JSON::true;
                 } else {
-                    $meta_data{$key} = JSON::false;
+                    $meta_data{$key} = \JSON::false;
                 }
             }
         }

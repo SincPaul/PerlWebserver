@@ -177,8 +177,16 @@ sub get_all_roles {
     return @roles;
 }
 
-sub update_user_values {
+sub                  {
     my ($uuid, $key, $value) = @_;
+
+    #print("UUID: $uuid, KEY: $key, VALUE: $value\n");
+    if (!$uuid || !$key || !$value) {
+        return 0;
+    }
+    if (!user_exists(undef, $uuid)) {
+        return 0;
+    }
 
     my $filename = "$userdata_folder/Users/$uuid/$uuid.json";
     my $data = get_json_data($uuid);
