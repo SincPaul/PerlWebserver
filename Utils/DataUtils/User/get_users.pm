@@ -15,4 +15,9 @@ sub get_users {
     return encode_json(\@users);
 }
 
+sub get_main_user {
+    my ($client_socket, $route) = @_;
+
+    return encode_json($main::user);
+}
 1;

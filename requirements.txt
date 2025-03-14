@@ -1,5 +1,6 @@
-cpan JSON
-cpan IO::Epoll
-cpan Net::SMTP::SSL
-cpan Authen::SASL
-cpan Crypt::CBC
+apt update
+apt install build-essential -y
+apt-get install libssl-dev
+apt-get install zlib1g-dev
+apt-get install libpq-dev
+cpanm Canary::Stability JSON IO::Epoll Crypt::GCM Crypt::Cipher::AES Crypt::CBC Net::DNS Net::SMTP::SSL Net::SSLeay IO::Socket::SSL Authen::SASL DBI DBD::Pg

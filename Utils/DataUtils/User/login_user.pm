@@ -7,7 +7,7 @@ use JSON;
 use Cwd;
 
 sub post_login {
-    my ($client_socket, $route, $temp_file) = @_;
+    my ($client_socket, $route, $temp_file, $is_launcher) = @_;
     my $response;
     my $username;
     my $password; 
@@ -27,7 +27,9 @@ sub post_login {
     if (user_utils::is_wide($password)) {
        $password = user_utils::encode_uri($password);
     }
-    $fingerprint = $json->{fingerprint};
+    if ($json->{fingerprint}) {
+        $fingerprint = $json->{fingerprint};
+    }
     $ip = $epoll::clients{fileno($client_socket)}{ip};
 
     if (!$username || !$password) {
@@ -48,6 +50,11 @@ sub post_login {
         # my @cookies = ($cookie, $remember_me_cookie);
         my $cookie = cookie_utils::get_session_cookie($username);
         cookie_utils::validate_session($cookie);
+        if ($is_launcher) {
+            $response = HTTP_RESPONSE::OK_WITH_COOKIE("Logged in", $cookie);
+            http_utils::send_http_response($client_socket, $response);
+            return;
+        }
         my $html = get_operation_finished_pages::get_logined($username);
         $response = HTTP_RESPONSE::OK_WITH_COOKIE($html, $cookie);
         user_utils::populate_user($cookie, $accept_language);
@@ -113,4 +120,10 @@ sub login_user {
     return 1;
 }
 
+sub post_login_launcher {
+    my ($client_socket, $route, $temp_file) = @_;
+    my $is_launcher = 1;
+    # print("LAUNCHER LOGIN\n");
+    return post_login($client_socket, $route, $temp_file, $is_launcher);
+}
 1;

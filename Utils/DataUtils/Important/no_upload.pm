@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Cwd;
+use JSON;
 
 sub get_cookie_encryption_key {
     my $base_dir = getcwd();
@@ -55,5 +56,28 @@ sub get_github_token {
     close $fh;
 
     return $token;
+}
+
+sub get_chat_db {
+    my $base_dir = getcwd();
+    my $db_file = "$base_dir/Data/Private/chat_db.json";
+
+    open my $fh, "<", $db_file or do {
+        return;
+    };
+    my $db = do { local $/; <$fh> };
+    close $fh;
+
+    my $data = decode_json($db);
+    print("DATA: $data\n");
+
+    return $data;
+    #{
+    #   "name": "",
+    #   "host": "",
+    #   "port": "",
+    #   "user": "",
+    #   "password": ""
+    #}
 }
 1;

@@ -18,7 +18,11 @@ HTML
     <div class="game_buttons">
         <a href="/gameroom/memory">$translations->{memory}</a>
     </div>
-
+    <br>
+    <br>
+    <div class="game_launcher">
+        <a href="/gamelauncher/download/launcher">$translations->{game_launcher} Download</a>
+    </div>
 HTML
     
 

@@ -6,6 +6,7 @@ use User::User;
 use JSON;
 use Cwd;
 use URI::Escape;
+use Digest::SHA;
 
 my $empty_cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 my $base_dir = getcwd();
@@ -925,5 +926,40 @@ sub get_users {
 
     return @possible_users;
 
+}
+
+sub random_number {
+    my ($amount) = @_;
+
+    my $number;
+    for (my $i = 0; $i < $amount; $i++) {
+        $number .= int(rand(10));
+    }
+    return $number;
+}
+
+sub create_file_hash {
+    my ($hash_algorithm, $filepath) = @_;
+
+    print("FILEPATH: $filepath\n");
+    open(my $file, '<', $filepath) or die "Cannot open file: $!";
+    binmode($file);
+
+    my $hash = Digest::SHA->new($hash_algorithm) or die "Unknown algorithm: $hash_algorithm";
+    my $buffer;
+    while (read($file, $buffer, 4096)) {
+        $hash->add($buffer);
+    }
+    close($file);
+
+    return $hash->hexdigest;
+}
+
+sub is_int {
+    my ($number) = @_;
+    if ($number =~ /^\d+$/) {
+        return 1;
+    }
+    return 0;
 }
 1;

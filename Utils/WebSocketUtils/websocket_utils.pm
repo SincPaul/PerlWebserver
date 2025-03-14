@@ -8,11 +8,24 @@ use Cwd;
 
 my %websocket_types = (
     "game" => \&game_utils::handle_game_index,
+    "chat" => \&chat_websocket::handle_chat,
+    "friends" => \&friend_websocket::handle_friends,
 );
 
 my %disconnect_types = (
     "Memory Queue" => \&memory_game_utils::remove_from_queue,
     "Memory Game" => \&memory_game_utils::remove_from_game,
+    "Friend WS" => \&friend_websocket::remove_from_online,
+);
+
+my %handle_based_on_uri = (
+    "/friends" => \&friend_websocket::connect_to_ws,
+    "/chat" => \&chat_websocket::connect_to_ws,
+);
+
+my %handle_before_upgrade = (
+    "/friends" => \&friend_websocket::handle_before_upgrade,
+    "/chat" => \&chat_websocket::handle_before_upgrade,
 );
 
 sub receive_msg {
@@ -32,10 +45,11 @@ sub receive_msg {
     }
 
     if (!$message) {
-        # print("REMOVING DISCONNECTED CLIENT ".($client_fd)."\n");
+        print("REMOVING DISCONNECTED CLIENT ".($client_fd)."\n");
         on_disconnect($client_socket);
         close($client_socket);
         delete $epoll::clients{$client_fd};
+        main::epoll_loop();
         return;
     }
 
@@ -87,6 +101,33 @@ sub encode_frame {
     return $frame;
 }
 
+sub encode_close_frame {
+    my ($close_code, $message) = @_;
+
+    my $message_length = length($message);
+    my $frame = "";
+
+    if (!$close_code) {
+        return;
+    }
+
+    $frame .= pack("n", $close_code);
+
+    if ($message_length) {
+        $frame .= $message;
+    }
+
+    if ($message_length > 125) {
+        die "Message too long";
+        return;
+    }
+
+    $frame = pack("C", 0b10001000) . pack("C", length($frame)) . $frame;
+
+    return $frame;
+}
+        
+
 sub decode_frame {
     my ($message, $client_socket) = @_;
 
@@ -113,8 +154,8 @@ sub decode_frame {
 
     if ($opcode == 0x8) {
         # print("CLOSING CONNECTION\n");
-        on_disconnect($client_socket);
         send($client_socket, pack("C", 0x88), 0);
+        on_disconnect($client_socket);
         close($client_socket);
         return;
     }
@@ -145,11 +186,34 @@ sub decode_frame {
 
 sub no_mask_error {
     my ($client_socket) = @_;
-    my $error_frame = encode_frame("1002 Protocol Error");
+    my $error_frame = encode_close_frame(1002, "Protocol Error");
     # print("NO MASK\n");
     send($client_socket, $error_frame, 0);
     close($client_socket);
     warn "Protocol error: No mask present in the frame";
+}
+
+sub close_frame {
+    my ($client_socket, $close_code, $close_message) = @_;
+    if (!$close_code) {
+        return;
+    }
+    my $close_frame = encode_close_frame($close_code, $close_message);
+    send($client_socket, $close_frame, 0);
+    print("CLOSED CONNECTION\n");
+    close($client_socket);
+}
+
+sub send_error {
+    my ($client_socket, $error_message) = @_;
+    my $error_frame = encode_frame($error_message);
+    send($client_socket, $error_frame, 0);
+}
+
+sub send_success {
+    my ($client_socket, $success_message) = @_;
+    my $success_frame = encode_frame($success_message);
+    send($client_socket, $success_frame, 0);
 }
 
 sub decode_data {
@@ -225,6 +289,7 @@ sub handle_websocket_request {
 
     # print("WEBSOCKET REQUEST\n");
     # print("REQUEST: $request\n");
+    ($main::uri) = $request =~ /(?:GET|POST) (.*?) HTTP/;
     if ($request =~ /Sec-WebSocket-Version: (.*)\r\n/) {
         my $version = $1;
         if ($version ne "13") {
@@ -235,14 +300,33 @@ sub handle_websocket_request {
     if ($request =~ /Sec-WebSocket-Key: (.*)\r\n/) {
         my $key = $1;
 
+        if ($handle_before_upgrade{$main::uri}) {
+            print("checking " . $main::uri . "\n");
+            if (!$handle_before_upgrade{$main::uri}->($client_socket)) {
+                return;
+            }
+        } else {
+            print("NO HANDLER for $main::uri\n");
+            # print($request);
+        }
+
         my $response = HTTP_RESPONSE::SWITCHING_PROTOCOLS_101($key);
         http_utils::send_response($client_socket, $response);
         
-        
         # epoll_ctl($main::epoll, EPOLL_CTL_ADD, fileno $client_socket, EPOLLIN) >= 0 || die "Can't add client socket to epoll: $!";
+        print("URI: $main::uri\n");
+        $epoll::clients{fileno $client_socket}{uri} = $main::uri;
+        $epoll::clients{fileno $client_socket}{user} = $main::user;
+        print("SETTING MAIN USER FOR FD ".fileno($client_socket).": $main::user\n");
+        print($epoll::clients{fileno $client_socket}{user} . "\n");
 
         
-    
+        if ($handle_based_on_uri{$main::uri}) {
+            print("HANDLING BASED ON URI\n");
+            $handle_based_on_uri{$main::uri}->($client_socket);
+        } else {
+            print("STINKY\n");
+        }
         # print("WEBSOCKET UPGRADED\n");
 
         main::epoll_loop();
@@ -251,7 +335,6 @@ sub handle_websocket_request {
 
 sub handle_websocket_communication {
     my ($client_fd) = @_;
-
     # print("HANDLING WEBSOCKET COMMUNICATION\n");
     my $client_socket = $epoll::clients{$client_fd}{"socket"};
     # print("CLIENT SOCKET: $client_socket\n");
@@ -271,6 +354,13 @@ sub handle_websocket_communication {
         my $response = encode_frame("pong");
         send($client_socket, $response, 0) or warn "Failed to send response: $!";
         return;
+    }
+
+    if (!defined $main::user) {
+        print("NO MAIN USER for fd $client_fd\n");
+        $main::user = $epoll::clients{$client_fd}{"user"};
+        print($epoll::clients{$client_fd}{"user"} . "\n");
+        print("MAIN USER: $main::user\n");
     }
 
 
@@ -340,6 +430,8 @@ sub on_disconnect {
     foreach my $active_connection (@active_connections) {
         handle_disconnect($active_connection, $client_socket);
     }
+    close($client_socket);
+    main::remove_client_complete(fileno $client_socket);
 }
 
 sub get_active_connections {
@@ -358,9 +450,9 @@ sub get_active_connections {
 sub handle_disconnect {
     my ($active_connection, $client_socket) = @_;
 
-    # print("ACTIVE CONNECTION: $active_connection\n");
+    print("ACTIVE CONNECTION: $active_connection\n");
     foreach my $type (keys %disconnect_types) {
-        # print("TYPE: $type\n");
+        print("TYPE: $type\n");
         if ($active_connection =~ /$type/) {
             return $disconnect_types{$type}->($client_socket, $active_connection);
         }

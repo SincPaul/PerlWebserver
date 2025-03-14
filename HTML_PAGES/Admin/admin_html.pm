@@ -19,6 +19,7 @@ sub get_admin {
     <br>
     <a href="/admin/users">Users</a>
     <a href="/admin/updateLog">Update Log</a>
+    <a href="/admin/gamelauncher">Game Launcher</a>
     <span class="inline_buttons">
         <a href="/logout">Logout</a>
         <a href="/ ">Return to index</a>

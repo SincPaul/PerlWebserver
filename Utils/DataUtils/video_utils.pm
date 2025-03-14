@@ -101,14 +101,18 @@ sub get_video_metadata {
     if (!$meta_data) {
         return;
     }
+
+    
     my $video = { video_name => $meta_data };
     my $video_data = decode_json($meta_data);
     # print("THUMBNAIL PATH: $video_data->{thumbnail}\n");
     # print("VIDEO DATA: $video_data\n");
     # print("FILE: $file\n");
+    print("METADATA: $meta_data\n");
+    print("VIDEO DATA: $video_data\n");
     # foreach my $key (keys %$file) {
-        # print("KEY: $key\n");
-        # print("VALUE: $file->{$key}\n");
+    #     print("KEY: $key\n");
+    #     print("VALUE: $file->{$key}\n");
     # }
         # $video->{filepath} = $file->{filepath};
     my %new_video_data = %$video_data;
@@ -270,7 +274,7 @@ sub get_video_metadata_with_video_id {
             next;
         }
         my $meta_data_file = "$base_dir/$line";
-        # print("META DATA FILE: $meta_data_file\n");
+        print("META DATA FILE: $meta_data_file\n");
         $metadata = get_video_metadata($meta_data_file);
         last;
     }
@@ -637,11 +641,11 @@ sub remove_comment_like {
         return;
     }
 
-    open my $fh, "<", $comments_file or die;
-    my $data = do { local $/; <$fh> };
+    open $fh, "<", $comments_file or die;
+    $data = do { local $/; <$fh> };
     close $fh;
 
-    my $json = decode_json($data);
+    $json = decode_json($data);
 
     my $comment;
     if ($parent_comment_id) {
@@ -688,11 +692,11 @@ sub add_comment_like {
         return;
     }
 
-    open my $fh, "<", $comments_file or die;
-    my $data = do { local $/; <$fh> };
+    open $fh, "<", $comments_file or die;
+    $data = do { local $/; <$fh> };
     close $fh;
 
-    my $json = decode_json($data);
+    $json = decode_json($data);
 
     my $comment;
     if ($parent_comment_id) {
@@ -739,11 +743,11 @@ sub add_comment_dislike {
         return;
     }
 
-    open my $fh, "<", $comments_file or die;
-    my $data = do { local $/; <$fh> };
+    open $fh, "<", $comments_file or die;
+    $data = do { local $/; <$fh> };
     close $fh;
 
-    my $json = decode_json($data);
+    $json = decode_json($data);
 
     my $comment;
     if ($parent_comment_id) {
@@ -789,11 +793,11 @@ sub remove_comment_dislike {
         return;
     }
 
-    open my $fh, "<", $comments_file or die;
-    my $data = do { local $/; <$fh> };
+    open $fh, "<", $comments_file or die;
+    $data = do { local $/; <$fh> };
     close $fh;
 
-    my $json = decode_json($data);
+    $json = decode_json($data);
 
     my $comment;
     if ($parent_comment_id) {
@@ -911,9 +915,9 @@ sub reply_to_comment {
     my $reply_data = body_utils::load_temp_file($temp_file);
     my $reply_json = decode_json($reply_data);
     my $reply_comment_text = $reply_json->{reply};
-    print("REPLY DATA: $reply_data\n");
-    print("REPLY JSON: $reply_json\n");
-    print("REPLY COMMENT TEXT: $reply_comment_text\n");
+    # print("REPLY DATA: $reply_data\n");
+    # print("REPLY JSON: $reply_json\n");
+    # print("REPLY COMMENT TEXT: $reply_comment_text\n");
     my $parent_comment = $json->{$parent_comment_id};
     if (!$parent_comment) {
         return;

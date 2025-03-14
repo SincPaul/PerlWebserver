@@ -12,6 +12,8 @@ sub new {
     my $role = $user_stats->{role}; 
     my $email = $user_stats->{email};
     my $human_username = user_utils::decode_uri($username);
+    my $displayname = $user_stats->{displayname};
+    my $human_displayname = user_utils::decode_uri($user_stats->{displayname});
     # print("Username: $username\n");
     # print("Human username: $human_username\n");
     if (!$username || !$password) {
@@ -25,6 +27,8 @@ sub new {
         uuid => $uuid,
         username => $user_stats->{username},
         human_username => $human_username,
+        displayname => $user_stats->{displayname},
+        human_displayname => user_utils::decode_uri($user_stats->{displayname}),
         role => $user_stats->{role},
         banned => $user_stats->{banned},
         email => $user_stats->{email},

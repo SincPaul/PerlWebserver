@@ -30,9 +30,10 @@ sub OK {
     my $content_length = length($html_content);
     my $response = "HTTP/1.1 200 OK\r\n"
                 . "Content-Type: text/html; charset=utf-8\r\n"
-                . "Connection: close\r\n"
-                . "\r\n"
-                . $html_content;
+                . "Connection: close\r\n";
+    $response .= "Content-Length: $content_length\r\n" if $html_content;
+    $response .= "\r\n";
+    $response .= $html_content if $html_content;
 
     return $response;
 }

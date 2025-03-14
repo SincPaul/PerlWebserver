@@ -145,6 +145,35 @@ sub update_channel_displayname {
     close $user_data_fh;
 }
 
+sub update_channel_about {
+    my ($username, $video_id, $update_item, $temp_file, $client_socket) = @_;   
+
+
+    my $body = body_utils::load_temp_file($temp_file);
+
+    my $json = decode_json($body);
+
+    my $about = $json->{about};
+
+    if (!$about) {
+        http_utils::serve_error($client_socket, HTTP_RESPONSE::ERROR_400("About not provided"));
+        return;
+    }
+
+    my $base_dir = getcwd();
+    my $channel_uuid = user_utils::get_uuid_by_username($username);
+    my $channel_path = "$base_dir/Data/UserData/Users/$channel_uuid/Streaming/Channel";
+    if (!-d $channel_path) {
+        mkdir $channel_path;
+    }
+    my $about_file = "$channel_path/about.txt";
+    open my $fh, ">", $about_file;
+    print $fh $about;
+    close $fh;
+
+    http_utils::send_http_response($client_socket, HTTP_RESPONSE::OK("About updated"));
+}
+
 my %update_video_items = (
     "title" => \&update_video_title,
     "description" => \&update_video_description,
@@ -615,7 +644,6 @@ sub comment_video {
     my $video_path = "$base_dir/Data/UserData/Users/$video_metadata->{channel_uuid}/Streaming/Videos/$video_id";
     if (!-d $video_path) {
         http_utils::serve_error($client_socket, HTTP_RESPONSE::ERROR_404("Video not found"));
-        die;
         return;
     }
 
@@ -876,4 +904,6 @@ sub remove_dislike {
     print $fh encode_json($json);
     close $fh;
 }
+
+
 1;

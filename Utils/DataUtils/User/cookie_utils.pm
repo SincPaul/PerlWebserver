@@ -12,8 +12,9 @@ use JSON;
 
 # my $key = no_upload::get_cookie_encryption_key();
 
+my $session_timeout = 60*60*3;
 my $base_dir = getcwd();
-my $session_folder = "$base_dir/Sessions";
+my $session_folder = "$base_dir/Data/Sessions";
 if (!-d $session_folder) {
     mkdir($session_folder);
 }
@@ -46,6 +47,33 @@ sub get_session_cookie {
     # print("SESSION ID: $session_id\n");
     my $session_data = "$uuid|$session_id";
     my $encrypted_data = encrypt_cookie($session_data);
+    my $sessions_file = "$session_folder/sessions.json";
+    if (!-e $sessions_file) {
+        open(my $fh, '>', $sessions_file) or do {
+            warn "Can't open file $sessions_file: $!";
+            return;
+        };
+        print $fh "{}";
+        close $fh;
+    }
+    open my $fh, '<', $sessions_file or do {
+        warn "Can't open file $sessions_file: $!";
+        return;
+    };
+    my $json = do { local $/; <$fh> };
+    close $fh;
+    if (!$json) {
+        $json = "{}";
+    }
+    my $sessions = decode_json($json);
+    print("SESSIONS: $sessions\n");
+    $sessions->{$session_data} = time() + $session_timeout;
+    open $fh, '>', $sessions_file or do {
+        warn "Can't open file $sessions_file: $!";
+        return;
+    };
+    print $fh encode_json($sessions);
+    close $fh;
     my $cookie = "session=$encrypted_data; HttpOnly; SameSite=Strict; Path=/";
     # print("COOKIE: $cookie\n");
     return $cookie;
@@ -72,13 +100,75 @@ sub validate_session {
         return 0;
     }
 
+    my $sessions_file = "$session_folder/sessions.json";
+    if (!-e $sessions_file) {
+        return 0;
+    }
+
+    open(my $fh, '<', $sessions_file) or do {
+        warn "Can't open file $sessions_file: $!";
+        return 0;
+    };
+    my $json = do { local $/; <$fh> };
+    close $fh;
+    # print("JSON: $json\n");
+    if (!$json) {
+        return 0;
+    }
+    my $sessions = decode_json($json);
+    
+    my $timeout = $sessions->{$session_data};
+    if (!$timeout) {
+        return 0;
+    }
+
+    if ($timeout < time()) {
+        return 0;
+    }
+
+    $sessions->{$session_data} = time() + $session_timeout;
+    
+    open $fh, '>', $sessions_file or do {
+        warn "Can't open file $sessions_file: $!";
+        return 0;
+    };
+    print $fh encode_json($sessions);
+    close $fh;
+
     my ($uuid, $session_id) = split(/\|/, $session_data);
     # print("UUID: $uuid\n");
     # print("SESSION ID: $session_id\n");
     return ($uuid, $session_id);
 }
 
+sub delete_session_cookie {
+    my ($cookie) = @_;
 
+    my $encrypted_data;
+    if ($cookie =~ /=([^;]+)/) {
+        $encrypted_data = $1;
+    }
+
+    my $session_data = decrypt_cookie($encrypted_data);
+    if (!$session_data) {
+        return;
+    }
+    open my $fh, '<', "$session_folder/sessions.json" or do {
+        warn "Can't open file $session_folder/sessions.json: $!";
+        return;
+    };
+    my $json = do { local $/; <$fh> };
+    close $fh;
+    my $sessions = decode_json($json);
+    delete $sessions->{$session_data};
+    open $fh, '>', "$session_folder/sessions.json" or do {
+        warn "Can't open file $session_folder/sessions.json: $!";
+        return;
+    };
+    print $fh encode_json($sessions);
+    close $fh;
+
+}
 
 
 # sub get_cookie_data {

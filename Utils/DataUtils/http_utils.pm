@@ -9,7 +9,8 @@ use Errno qw(EPIPE);
 
 sub send_http_response {
     my ($client_socket, $response) = @_;
-    print $client_socket $response;
+    my $bytes_sent = send($client_socket, $response, 0);
+    print("BYTES SENT: $bytes_sent\n");
     # print("SENT RESPONSE, CLOSING SOCKET\n");
     close($client_socket);
 }

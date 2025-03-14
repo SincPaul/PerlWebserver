@@ -17,6 +17,20 @@ sub get_client_data {
     recv($client_socket, $buffer, 1024, 0);
 
     my $request = $buffer;
+    # print("REQUEST: $request\n");
+    my $session_cookie = request_utils::get_session_cookie($buffer);
+    # print("SESSION COOKIE: $session_cookie\n");
+    my ($uuid, $session_id) = cookie_utils::validate_session($session_cookie);
+    # print("UUID: $uuid\n");
+    # print("SESSION ID: $session_id\n");
+
+    if ($uuid) {
+        if(!user_utils::exist_not_banned($client_socket, $uuid)) {
+            return;
+        }
+        user_utils::populate_user($session_cookie);
+        $epoll::clients{$client_fd}{main_user} = $main::user;
+    }
 
     if ($request =~ /Content-Length: (\d+)/) {
         $epoll::clients{$client_fd}{"content_length"} = $1;
@@ -50,18 +64,7 @@ sub get_client_data {
         close $fh;
         $epoll::clients{$client_fd}{"temp_file"} = $temp_file;
     
-        my $session_cookie = request_utils::get_session_cookie($header);
-        # print("SESSION COOKIE: $session_cookie\n");
-        my ($uuid, $session_id) = cookie_utils::validate_session($session_cookie);
-        # print("UUID: $uuid\n");
-        # print("SESSION ID: $session_id\n");
-
-        if ($uuid) {
-            if(!user_utils::exist_not_banned($client_socket, $uuid)) {
-                return;
-            }
-            user_utils::populate_user($session_cookie);
-        }
+        
         # my $session_cookie = request_utils::get_session_cookie($header);
         # my $uuid;
         # my $session_id;
@@ -88,13 +91,20 @@ sub get_client_data {
                 #     http_utils::serve_error($client_socket, HTTP_RESPONSE::ERROR_413("Server storage exceeded"));
                 #     return;
                 # }
-                if ($content_length > $max_file_size) {
-                    # print("File too large\n");
+                if ($content_length > $max_file_size && !$main::user->{"role"} eq "admin") {
+                    print("File too large\n");
 
-                    # print("CURRENT USED STORAGE: ".user_utils::get_current_used_storage($uuid)."\n");
-                    # print("MAX FILE SIZE: $max_file_size\n");
-                    # print("CONTENT LENGTH: $content_length\n");
+                    print("CURRENT USED STORAGE: ".user_utils::get_current_used_storage($uuid)."\n");
+                    print("MAX FILE SIZE: $max_file_size\n");
+                    print("CONTENT LENGTH: $content_length\n");
                     http_utils::serve_error($client_socket, HTTP_RESPONSE::ERROR_413("File too large"));
+                    return;
+                }
+                my $server_storage = user_utils::get_server_storage();
+                my $free_server_storage = $server_storage->{"free"};
+                if ($content_length > $free_server_storage) {
+                    print("Server storage exceeded\n");
+                    http_utils::serve_error($client_socket, HTTP_RESPONSE::ERROR_413("Server storage exceeded"));
                     return;
                 }
             }
@@ -213,5 +223,20 @@ sub get_port_from_host {
         $port = $1;
     }
     return ($host, $port);
+}
+
+sub get_server_ip {
+    my $ifconfig_output = `ifconfig`;
+    my @interfaces = split(/\n\n/, $ifconfig_output);
+    foreach my $interface (@interfaces) {
+        if ($interface =~ /^(.*?):\sflags=(?:.*)inet (.*?)\s/s) {
+            if ($1 =~ /lo/ && $2 == 127.0.0.1 || $1 =~ /docker/) {
+                next;
+            }
+            return $2;
+        }
+    }
+
+    return;
 }
 1;

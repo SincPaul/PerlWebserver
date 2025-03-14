@@ -1,42 +1,62 @@
-var socket = new WebSocket("http://172.17.77.9/gameroom/memory/multi");
+
+var socket;
 var timeout;
 var timeoutInSec = 15;
+(async function() {
+    await connectToWebsocket();
+})();
 
-socket.onopen = function(event) {
-    console.log("WebSocket is open now.");
-    game_id_value = document.cookie.split('; ').find(row => row.startsWith('memory=')).split('=')[1];
-    msg = JSON.stringify({ game_id: game_id_value, type: "multi_start_game", game: "memory", wstype: "game" });
-    socket.send(msg);
-    console.log("Sent message: " + msg);
 
-    timeout = setTimeout(function() {
-        console.log("No message received in " + timeoutInSec + " seconds. Sending message and disconnecting.");
-        msg = JSON.stringify({ game_id: game_id_value, type: "opponent_not_connected", game: "memory", wstype: "game" });
+async function connectToWebsocket() {
+    var server_ip = await fetch("/server/ip")
+        .then(response => response.text())
+        .then(data => {
+            return data;
+        })
+        .catch(error => console.error('Error:', error));
+
+    socket = new WebSocket(`ws://${server_ip}/gameroom/memory/multi`);
+    
+    socket.onopen = function(event) {
+        console.log("WebSocket is open now.");
+        game_id_value = document.cookie.split('; ').find(row => row.startsWith('memory=')).split('=')[1];
+        msg = JSON.stringify({ game_id: game_id_value, type: "multi_start_game", game: "memory", wstype: "game" });
         socket.send(msg);
-        socket.close();
-        socket.onclose = function(event) {
-            alert("Opponent not connected. Redirecting to main page.");
-            window.location.href = "/gameroom/memory";
-        };
-    }, 15000);
+        console.log("Sent message: " + msg);
+    
+        timeout = setTimeout(function() {
+            console.log("No message received in " + timeoutInSec + " seconds. Sending message and disconnecting.");
+            msg = JSON.stringify({ game_id: game_id_value, type: "opponent_not_connected", game: "memory", wstype: "game" });
+            socket.send(msg);
+            socket.close();
+            socket.onclose = function(event) {
+                alert("Opponent not connected. Redirecting to main page.");
+                window.location.href = "/gameroom/memory";
+            };
+        }, 15000);
+    
+        const player1Name = document.getElementsByClassName("player1_name")[0].innerHTML;
+    
+        const player2Name = document.getElementsByClassName("player2_name")[0].innerHTML;
+    
+        player1 = player1Name ? player1Name : "Unknown Player 1";
+        player2 = player2Name ? player2Name : "Unknown Player 2";
+    
+        player1 = decodeURIComponent(player1);
+        player2 = decodeURIComponent(player2);
+    
+        myUsername = document.getElementsByClassName("my_username")[0].innerHTML;
+        // myUsername = document.cookie.split('; ').find(row => row.startsWith('username=')).split('=')[1];
+        console.log("Username from cookie: " + myUsername);
+        console.log(player1);
+        console.log(player2);
+        currentPlayer = decodeURIComponent(player1);
+    };
 
-    const player1Name = document.getElementsByClassName("player1_name")[0].innerHTML;
-
-    const player2Name = document.getElementsByClassName("player2_name")[0].innerHTML;
-
-    player1 = player1Name ? player1Name : "Unknown Player 1";
-    player2 = player2Name ? player2Name : "Unknown Player 2";
-
-    player1 = decodeURIComponent(player1);
-    player2 = decodeURIComponent(player2);
-
-    myUsername = document.getElementsByClassName("my_username")[0].innerHTML;
-    // myUsername = document.cookie.split('; ').find(row => row.startsWith('username=')).split('=')[1];
-    console.log("Username from cookie: " + myUsername);
-    console.log(player1);
-    console.log(player2);
-    currentPlayer = decodeURIComponent(player1);
+    setupSocketHandlers();
 };
+
+
 
 // socket.onmessage = function(event) {
 //     console.log("WebSocket message received:", event.data);
@@ -67,6 +87,3 @@ socket.onopen = function(event) {
 //     console.log("WebSocket is closed now.");
 // };
 
-socket.onerror = function(error) {
-    console.log("WebSocket error:", error);
-};

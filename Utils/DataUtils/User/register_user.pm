@@ -7,7 +7,7 @@ use Cwd;
 use JSON;
 
 sub post_register {
-    my ($client_socket, $route, $temp_file) = @_;
+    my ($client_socket, $route, $temp_file, $is_launcher) = @_;
     my $response;
     my $username;
     my $password; 
@@ -44,7 +44,7 @@ sub post_register {
         $accept_language = $1;
     }
 
-    if (register_user($username, $password, $client_socket, $accept_language, $email)) {
+    if (register_user($username, $password, $client_socket, $accept_language, $email, $is_launcher)) {
         my $cookie = cookie_utils::get_session_cookie($username);
         my $register_link = email_utils::create_email_verification_link($email, $username);
 
@@ -72,9 +72,14 @@ sub post_register {
         # user_utils::populate_user($cookie);
         
         user_utils::populate_user($cookie);
+        if ($is_launcher) {
+            $response = HTTP_RESPONSE::OK_WITH_COOKIE("Registered, click on email to activate", $cookie);
+            http_utils::send_http_response($client_socket, $response);
+            return;
+        }
         $response = HTTP_RESPONSE::OK_WITH_COOKIE(get_operation_finished_pages::get_registered_html($main::user->{human_username}), $cookie);
     } else {
-        $response = HTTP_RESPONSE::OK("User already exists <a href=\"/register \">Try again</a>");
+        $response = HTTP_RESPONSE::ERROR_409("User already exists <a href=\"/register\">Try again</a>");
         # $response = HTTP_RESPONSE::ERROR_400("User already exists");
     }
     http_utils::send_http_response($client_socket, $response);
@@ -82,7 +87,7 @@ sub post_register {
 
 
 sub register_user {
-    my ($username, $password, $client_socket, $accept_language, $email) = @_;
+    my ($username, $password, $client_socket, $accept_language, $email, $is_launcher) = @_;
     my $base_dir = getcwd();
     my $UserDataFolder = "$base_dir/Data/UserData";
     my $UsernameFile = "$UserDataFolder/usernames.json";
@@ -212,5 +217,10 @@ sub create_uuid_as_string {
     return $uuid;
 }
 
+sub post_register_launcher {
+    my ($client_socket, $route, $temp_file) = @_;
+    my $is_launcher = 1;
+    post_register($client_socket, $route, $temp_file, $is_launcher);
+}
 
 1;

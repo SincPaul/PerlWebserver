@@ -6,24 +6,38 @@ var knownCards = {};
 var moves = 0;
 
 
-var socket = new WebSocket("http://172.17.77.9/gameroom/memory/game");
+(async function() {
+    await connectToWebsocket();
+})();
 
-socket.onopen = function(event) {
-    console.log("WebSocket is open now.");
-    socket.send("Here's some text that the server is urgently awaiting!");
-    console.log("Sent message: Here's some text that the server is urgently awaiting!");
-};
 
-socket.onmessage = function(event) {
-    console.log("WebSocket message received:", event.data);
-};
+async function connectToWebsocket() {
+    var server_ip = await fetch("/server/ip")
+        .then(response => response.text())
+        .then(data => {
+            return data;
+        })
+        .catch(error => console.error('Error:', error));
 
-socket.onclose = function(event) {
-    console.log("WebSocket is closed now.");
-};
+    var socket = new WebSocket(`ws://${server_ip}/gameroom/memory/game`);
 
-socket.onerror = function(error) {
-    console.log("WebSocket error:", error);
+    socket.onopen = function() {
+        console.log("WebSocket is open now.");
+        socket.send("Here's some text that the server is urgently awaiting!");
+        console.log("Sent message: Here's some text that the server is urgently awaiting!");
+    };
+
+    socket.onmessage = function(event) {
+        console.log("WebSocket message received:", event.data);
+    };
+
+    socket.onclose = function(_event) {
+        console.log("WebSocket is closed now.");
+    };
+
+    socket.onerror = function(error) {
+        console.log("WebSocket error:", error);
+    };
 };
 
 

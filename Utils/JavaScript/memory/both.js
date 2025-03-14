@@ -140,71 +140,74 @@ function sendMoves(card_id) {
     });
 }
 
-socket.onmessage = function(event) {
-    console.log("WebSocket message received:", event.data);
-    clearTimeout(timeout);
+function setupSocketHandlers() {
 
-    if (event.data === "pong") {
-        console.log("Received pong.");
-        var currentTime = Date.now();
-        var ping = currentTime - lastPingTime;
-        console.log("Ping: " + ping + "ms");
-        document.getElementById('ping').textContent = ping;
-        return;
-    }
+    socket.onmessage = function(event) {
+        console.log("WebSocket message received:", event.data);
+        clearTimeout(timeout);
 
-    var data = JSON.parse(event.data);
+        if (event.data === "pong") {
+            console.log("Received pong.");
+            var currentTime = Date.now();
+            var ping = currentTime - lastPingTime;
+            console.log("Ping: " + ping + "ms");
+            document.getElementById('ping').textContent = ping;
+            return;
+        }
 
-    if (!data) {
-        return;
-    }
+        var data = JSON.parse(event.data);
 
-    console.log(data.type);
+        if (!data) {
+            return;
+        }
 
-    
-    if (data.type === "flipped_card") {
-        var card_id = data.card_flipped;
-        var card_name = data.card_name;
-        var imageData = card_name.replace(/"/g, '');
+        console.log(data.type);
 
-        console.log("Received card: " + card_id + " with image: " + imageData + "\nCard Name: " + card_name);
+        
+        if (data.type === "flipped_card") {
+            var card_id = data.card_flipped;
+            var card_name = data.card_name;
+            var imageData = card_name.replace(/"/g, '');
+
+            console.log("Received card: " + card_id + " with image: " + imageData + "\nCard Name: " + card_name);
 
 
-        var card = document.getElementById("memory_field" + card_id);
-        card.getElementsByTagName("img")[0].src = imageData;
-        knownCards[card_id] = imageData;
-        setImage(card_id);
-        moveUtils(card_id);
-    }
+            var card = document.getElementById("memory_field" + card_id);
+            card.getElementsByTagName("img")[0].src = imageData;
+            knownCards[card_id] = imageData;
+            setImage(card_id);
+            moveUtils(card_id);
+        }
 
-    if (data.type === "both_connected") {
-        console.log("Both players are connected.");
-        connectionLayer = document.getElementById("wait_connection_layer");
-        connectionLayer.style.display = "none";
-        pingInterval = setInterval(() => {
-            lastPingTime = Date.now();
-            socket.send("ping");
-        }, 1000);
-    }
+        if (data.type === "both_connected") {
+            console.log("Both players are connected.");
+            connectionLayer = document.getElementById("wait_connection_layer");
+            connectionLayer.style.display = "none";
+            pingInterval = setInterval(() => {
+                lastPingTime = Date.now();
+                socket.send("ping");
+            }, 1000);
+        }
 
-    if (data.type === "opponent_disconnected") {
-        var disconnectedPlayer = data.player;
-        disconnectedPlayer = decodeURI(disconnectedPlayer);
-        alert(disconnectedPlayer + " disconnected. Redirecting to main page.");
-        window.location.href = "/gameroom/memory";
-    }
+        if (data.type === "opponent_disconnected") {
+            var disconnectedPlayer = data.player;
+            disconnectedPlayer = decodeURI(disconnectedPlayer);
+            alert(disconnectedPlayer + " disconnected. Redirecting to main page.");
+            window.location.href = "/gameroom/memory";
+        }
 
-    if (data.type === "game_end") {
-        finish = true;
-        console.log("all cards are solved");
-        var url = "/gameroom/memory/end/" + game_id;
-        window.location.href = url;
-    }
-};
+        if (data.type === "game_end") {
+            finish = true;
+            console.log("all cards are solved");
+            var url = "/gameroom/memory/end/" + game_id;
+            window.location.href = url;
+        }
+    };
 
-socket.onclose = function(event) {
-    if (!finish) {
-        alert("Lost connection to server. Redirecting to main page.");
-        window.location.href = "/gameroom/memory";
-    }
-};
+    socket.onclose = function(event) {
+        if (!finish) {
+            alert("Lost connection to server. Redirecting to main page.");
+            window.location.href = "/gameroom/memory";
+        }
+    };
+}

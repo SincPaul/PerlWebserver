@@ -8,6 +8,7 @@ use IO::Epoll;
 use bigint;
 use Crypt::GCM;
 use Crypt::Cipher::AES;
+use Digest::SHA qw(hmac_sha256);
 
 my %record_layer_structure = (
     "handshake" => 22,
@@ -573,7 +574,6 @@ sub hkdf_expand_label {
     my $hkdf_expand_label = hkdf_expand($secret, $hkdf_label, $length);
 }
 
-use Digest::SHA qw(hmac_sha256);
 
 sub hkdf_expand {
     my ($secret, $info, $length) = @_;
